@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wedding Invitation Tracker</title>
+
+  <style>
+    :root {
+      --primary: #6c63ff;
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --muted: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: #111827;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: var(--primary);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      background: var(--card);
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input, select, button {
+      padding: 10px 12px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      background: #f1f3ff;
+      color: #1f2937;
+      font-weight: 600;
+      padding: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    tr:hover td {
+      background: #fafafa;
+    }
+
+    .category-header {
+      background: linear-gradient(90deg, #eef2ff, #f8f9ff);
+      font-weight: 600;
+      text-align: left;
+      padding: 12px;
+      color: #3730a3;
+    }
+
+    .invited {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .pending {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .delete-btn {
+      background: transparent;
+      color: var(--danger);
+      font-size: 16px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .delete-btn:hover {
+      transform: scale(1.1);
+    }
+
+    @media (max-width: 768px) {
+      .controls {
+        flex-direction: column;
+      }
+      table {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Wedding Invitation Tracker</h1>
+
+  <div class="controls">
+    <input type="text" id="nameInput" placeholder="Guest Name">
+
+    <select id="categorySelect"></select>
+
+    <input type="text" id="newCategoryInput" placeholder="Add New Category">
+    <button onclick="addCategory()">Add Category</button>
+
+    <button onclick="addGuest()">Add Guest</button>
+
+    <input type="text" id="searchInput" placeholder="Search by name" onkeyup="renderTable()">
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Invite</th>
+        <th>Delete</th>
+      </tr>
+    </thead>
+    <tbody id="guestTable"></tbody>
+  </table>
+</div>
+
+<script>
+  let guests = JSON.parse(localStorage.getItem("guests")) || [];
+  let categories = JSON.parse(localStorage.getItem("categories")) || [
+    "JD Friends",
+    "Baa Friends",
+    "Mother Family / Friends",
+    "Father Family / Friends",
+    "Dangor Baa Family / Friends",
+    "Medhipara People",
+    "People outside Medhipara"
+  ];
+
+  function saveData() {
+    localStorage.setItem("guests", JSON.stringify(guests));
+    localStorage.setItem("categories", JSON.stringify(categories));
+  }
+
+  function loadCategories() {
+    const select = document.getElementById("categorySelect");
+    select.innerHTML = `<option value="">Select Category</option>`;
+    categories.forEach(cat => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+  }
+
+  function addCategory() {
+    const val = newCategoryInput.value.trim();
+    if (!val || categories.includes(val)) return;
+    categories.push(val);
+    newCategoryInput.value = "";
+    saveData();
+    loadCategories();
+    renderTable();
+  }
+
+  function addGuest() {
+    const name = nameInput.value.trim();
+    const cat = categorySelect.value;
+    if (!name || !cat) return alert("Enter name and category");
+
+    guests.push({ name, category: cat, invited: false });
+    nameInput.value = "";
+    categorySelect.value = "";
+    saveData();
+    renderTable();
+  }
+
+  function toggleStatus(i) {
+    guests[i].invited = !guests[i].invited;
+    saveData();
+    renderTable();
+  }
+
+  function deleteGuest(i) {
+    if (!confirm("Delete this guest?")) return;
+    guests.splice(i, 1);
+    saveData();
+    renderTable();
+  }
+
+  function renderTable() {
+    const search = searchInput.value.toLowerCase();
+    guestTable.innerHTML = "";
+
+    categories.forEach(cat => {
+      const list = guests
+        .map((g, i) => ({ ...g, i }))
+        .filter(g => g.category === cat && g.name.toLowerCase().includes(search));
+
+      if (!list.length) return;
+
+      guestTable.innerHTML += `
+        <tr>
+          <td colspan="5" class="category-header">📁 ${cat} (${list.length})</td>
+        </tr>
+      `;
+
+      list.forEach(g => {
+        guestTable.innerHTML += `
+          <tr>
+            <td>${g.name}</td>
+            <td>${g.category}</td>
+            <td class="${g.invited ? "invited" : "pending"}">
+              ${g.invited ? "Invited" : "Pending"}
+            </td>
+            <td>
+              <input type="checkbox" ${g.invited ? "checked" : ""}
+                onchange="toggleStatus(${g.i})">
+            </td>
+            <td>
+              <button class="delete-btn" onclick="deleteGuest(${g.i})">🗑</button>
+            </td>
+          </tr>
+        `;
+      });
+    });
+  }
+
+  loadCategories();
+  renderTable();
+</script>
+
+</body>
+</html>
